@@ -29,9 +29,16 @@ type TavilyExtractResult = { url?: string; raw_content?: string; content?: strin
 type TavilyExtractResponse = { results?: TavilyExtractResult[] };
 
 async function tavily<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const apiKey = process.env.TAVILY_API_KEY;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  } else {
+    headers["X-Tavily-Access-Mode"] = "keyless";
+  }
   const response = await fetch(`https://api.tavily.com/${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Tavily-Access-Mode": "keyless" },
+    headers,
     body: JSON.stringify(body),
     cache: "no-store",
     signal: AbortSignal.timeout(25000)
