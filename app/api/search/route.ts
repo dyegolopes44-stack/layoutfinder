@@ -118,7 +118,7 @@ export async function POST(request: Request) {
       return {
         ...item,
         domain: candidateHost,
-        screenshot: `https://image.thum.io/get/width/900/crop/650/noanimate/${encodeURIComponent(item.url)}`,
+        screenshot: `https://image.thum.io/get/width/900/crop/650/noanimate/${item.url}`,
         visualScore: visualSignals,
         technologies: tech,
         sharedTechnologies: sharedTech,
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     }).sort((a, b) => ((b.technologyScore ?? -1) + (b.visualScore ?? -1)) - ((a.technologyScore ?? -1) + (a.visualScore ?? -1)));
 
     return NextResponse.json({
-      source: { url: source.toString(), domain: host, screenshot: `https://image.thum.io/get/width/900/crop/650/noanimate/${encodeURIComponent(source.toString())}`, technologies: sourceTech },
+      source: { url: source.toString(), domain: host, screenshot: `https://image.thum.io/get/width/900/crop/650/noanimate/${source.toString()}`, technologies: sourceTech },
       results,
       note: "Os indicadores são estimativas baseadas em conteúdo público indexado e sinais técnicos detectáveis. Não comprovam vínculo entre empresas nem uso da mesma plataforma."
     });
