@@ -23,7 +23,12 @@ function cleanUrl(input: string) {
   return url;
 }
 
-async function tavily(path: string, body: Record<string, unknown>) {
+type TavilySearchResult = { url: string; title?: string; content?: string; score?: number };
+type TavilySearchResponse = { results?: TavilySearchResult[] };
+type TavilyExtractResult = { url?: string; raw_content?: string; content?: string };
+type TavilyExtractResponse = { results?: TavilyExtractResult[] };
+
+async function tavily<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`https://api.tavily.com/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Tavily-Access-Mode": "keyless" },
@@ -35,7 +40,7 @@ async function tavily(path: string, body: Record<string, unknown>) {
     const detail = await response.text();
     throw new Error(`Pesquisa externa indisponível (${response.status}): ${detail.slice(0, 180)}`);
   }
-  return response.json();
+  return response.json() as Promise<T>;
 }
 
 function detectTech(text: string) {
@@ -60,8 +65,10 @@ function overlapScore(a: string, b: string) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const input = typeof body.url === "string" ? body.url.trim() : "";
+    const body: unknown = await request.json();
+    const input = typeof body === "object" && body !== null && "url" in body && typeof body.url === "string"
+      ? body.url.trim()
+      : "";
     if (!input) return NextResponse.json({ error: "Informe o endereço da casa de apostas." }, { status: 400 });
 
     let source: URL;
@@ -76,7 +83,7 @@ export async function POST(request: Request) {
     ];
 
     const searches = await Promise.all(queries.map((query) =>
-      tavily("search", { query, max_results: 8, search_depth: "advanced", topic: "general", country: "Brazil" })
+      tavily<TavilySearchResponse>("search", { query, max_results: 8, search_depth: "advanced", topic: "general", country: "Brazil" })
     ));
     const found = new Map<string, { title: string; url: string; content: string; score: number }>();
     for (const search of searches) {
@@ -97,8 +104,8 @@ export async function POST(request: Request) {
 
     const candidates = Array.from(found.values()).slice(0, 12);
     const urls = [source.toString(), ...candidates.slice(0, 8).map((item) => item.url)];
-    let extracted: any = { results: [] };
-    try { extracted = await tavily("extract", { urls }); } catch { /* Search results remain useful without extraction. */ }
+    let extracted: TavilyExtractResponse = { results: [] };
+    try { extracted = await tavily<TavilyExtractResponse>("extract", { urls }); } catch { /* Search results remain useful without extraction. */ }
     const pages = new Map<string, string>();
     for (const item of extracted.results || []) {
       if (item.url) pages.set(new URL(item.url).hostname.replace(/^www\./, ""), item.raw_content || item.content || "");
